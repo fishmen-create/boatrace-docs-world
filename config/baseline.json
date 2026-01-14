@@ -1,0 +1,30 @@
+{
+  "baseline_name": "CAP10_EXCL_BASELINE_2025-12-03_2025-12-30_S_ONLY_DROP_SKIP_NO_S3F",
+  "tickets": "C:\\work\\boatrace\\runs\\CAP10_EXCL_20251203_1230_tickets_long_racelevel_DROP_SKIP_NO_S3F.csv",
+  "payouts": "C:\\work\\boatrace\\runs\\payouts_all_2025-10-02_2025-12-30_MERGED_keynorm.csv",
+  "expected": {
+    "date_range": [
+      "2025-12-03",
+      "2025-12-30"
+    ],
+    "tiers": [
+      "S"
+    ],
+    "guard": {
+      "active_rows": 386,
+      "unique_races": 135,
+      "invest_total": 1080000,
+      "key_overlap_rate": 1.0
+    },
+    "roi_total": {
+      "invest": 1080000,
+      "return": 991400,
+      "roi": 0.917963
+    }
+  },
+  "notes": [
+    "Filename contains '90D' in some outputs, but tickets date_range is 2025-12-03..2025-12-30; treat this as the confirmed baseline worldline.",
+    "Any new experiments must be compared back to this baseline under matched filters."
+  ],
+  "created_at": "20260106_130944"
+}

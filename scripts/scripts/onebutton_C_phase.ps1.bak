@@ -1,0 +1,121 @@
+param(
+  [Parameter(Mandatory=$true)][string]$Date,
+  [Parameter(Mandatory=$true)][string]$Root,
+  [Parameter(Mandatory=$true)][string]$Runs
+)
+
+$ErrorActionPreference = "Stop"
+
+function Die($m){ Write-Host "[FATAL] $m" -ForegroundColor Red; exit 1 }
+function Info($m){ Write-Host "[info] $m" -ForegroundColor Cyan }
+
+# --- Locate inputs ---
+$allk = Get-ChildItem $Runs -Filter "all_k_results*.csv" -ErrorAction SilentlyContinue |
+  Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if(-not $allk){ Die "all_k_results*.csv not found under $Runs" }
+
+$bdir = @("$Root\b_files","$Root\b","$Root\B","$Root\data\b_files") | Where-Object { Test-Path $_ } | Select-Object -First 1
+if(-not $bdir){ Die "B dir not found (expected one of: b_files/b/B/data\\b_files)" }
+
+$collect = @(
+  "$Root\collect_boatrace_official_features_bonly_v2.py",
+  "$Root\collect_boatrace_official_features_bonly.py"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if(-not $collect){ Die "collect_boatrace_official_features_bonly(_v2).py not found under $Root" }
+
+$dedup = "$Root\dedup_official_features.py"
+if(-not (Test-Path $dedup)){ Die "dedup_official_features.py not found: $dedup" }
+
+# Predictor scripts (prefer STSAFE)
+$pred = @(
+  "$Root\boatrace_backtest_v12_prune_configurable_s087_alltracks_STSAFE.py",
+  "$Root\boatrace_backtest_v12_prune_configurable_s087_alltracks_AXISFIX.py",
+  "$Root\boatrace_backtest_v12_prune_configurable_s087_alltracks.py"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if(-not $pred){ Die "predictor script not found under $Root" }
+
+$c_emit = "$Root\scripts\c_out_emit_summary.py"
+if(-not (Test-Path $c_emit)){ Die "c_out_emit_summary.py not found: $c_emit" }
+
+# CAP10 selector (pick newest found under root)
+$cap = Get-ChildItem $Root -Recurse -File -Filter "cap10_select_conf_top10_v3.py" -ErrorAction SilentlyContinue |
+  Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if(-not $cap){ Die "cap10_select_conf_top10_v3.py not found under $Root" }
+
+# exclusions.json
+$excl = "$Root\config\exclusions.json"
+if(-not (Test-Path $excl)){
+  $exclFound = Get-ChildItem $Root -Recurse -File -Filter "exclusions.json" -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  if(-not $exclFound){ Die "exclusions.json not found under $Root" }
+  $excl = $exclFound.FullName
+}
+
+Info "DATE=$Date"
+Info "ALLK=$($allk.FullName)"
+Info "BDIR=$bdir"
+Info "COLLECT=$collect"
+Info "DEDUP=$dedup"
+Info "PRED=$pred"
+Info "C_EMIT=$c_emit"
+Info "CAP10=$($cap.FullName)"
+Info "EXCL=$excl"
+
+# --- C-2: collect features (raw) ---
+$featRaw = Join-Path $Runs ("official_features_all_{0}.csv" -f $Date)
+$featDed = Join-Path $Runs ("official_features_all_{0}_dedup.csv" -f $Date)
+
+Info "[C-2] collect official features -> $featRaw"
+python $collect --all-k-csv "$($allk.FullName)" --b-dir "$bdir" --date-from $Date --date-to $Date --output "$featRaw"
+if($LASTEXITCODE -ne 0){ Die "collect features failed" }
+if(-not (Test-Path $featRaw)){ Die "features not created: $featRaw" }
+
+Info "[C-2] dedup -> $featDed"
+python $dedup --input "$featRaw" --output "$featDed"
+if($LASTEXITCODE -ne 0){ Die "dedup failed" }
+if(-not (Test-Path $featDed)){ Die "dedup not created: $featDed" }
+
+# --- C-3: run predictor -> report/tickets_long ---
+$stamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$outPrefix = Join-Path $Runs ("C_OUT_{0}_{1}" -f $Date, $stamp)
+
+Info "[C-3] predictor -> outPrefix=$outPrefix"
+python $pred --features-csv "$featDed" --date-from $Date --date-to $Date --output-prefix "$outPrefix"
+if($LASTEXITCODE -ne 0){ Die "predictor failed" }
+
+$report = "${outPrefix}_report.csv"
+$tixLong = "${outPrefix}_tickets_long.csv"
+if(-not (Test-Path $report)){ Die "report missing: $report" }
+if(-not (Test-Path $tixLong)){ Die "tickets_long missing: $tixLong" }
+
+Info "[C-3] emit C summary"
+$cOut = "${outPrefix}_C_race_summary.csv"
+$cTxt = "${outPrefix}_C_race_summary.txt"
+python $c_emit --report "$report" --out "$cOut" --txt "$cTxt"
+if($LASTEXITCODE -ne 0){ Die "c_out_emit failed" }
+
+# --- C-4: CAP10 + EXCL -> selected + cap10 tickets ---
+$fixedDir = Join-Path $Runs ("C_OUT_FIXED_{0}_{1}" -f $Date, $stamp)
+New-Item -ItemType Directory -Force -Path $fixedDir | Out-Null
+
+$selCsv = Join-Path $fixedDir "C_selected_races.csv"
+$capCsv = Join-Path $fixedDir "C_cap10_tickets.csv"
+
+Info "[C-4] apply CAP10+EXCL"
+python $cap.FullName --tickets "$tixLong" --report "$report" --exclude-config "$excl" --k 10 --conf-col auto --out "$capCsv" --selected-out "$selCsv"
+if($LASTEXITCODE -ne 0){ Die "cap10_select failed" }
+
+if(-not (Test-Path $selCsv)){ Die "selected missing: $selCsv" }
+if(-not (Test-Path $capCsv)){ Die "cap tickets missing: $capCsv" }
+
+$selectedCount = (Import-Csv $selCsv | Measure-Object).Count
+Info "[OK] C-4 selected_rows=$selectedCount (expect 10)"
+
+Info "=== NEXT (C-5) ==="
+Info "Upload this file to AI for deadline attach:"
+Info "  $selCsv"
+Info "Also keep cap10 tickets for D-phase:"
+Info "  $capCsv"
+
+Write-Host ""
+Write-Host "[DONE] C phase finished (C-2..C-4). For C-5, upload C_selected_races.csv to AI." -ForegroundColor Green

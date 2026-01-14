@@ -1,0 +1,33 @@
+{
+  "candidate_name": "CAP10_EXCL10_DETERMINISTIC_V2_2025-10-08_2025-12-30_tier_conf",
+  "source_of_truth": {
+    "exclusions_json": "C:\\work\\boatrace\\config\\exclusions.json",
+    "cap_k": 10,
+    "cap_priority": "tier_conf",
+    "ranking": "tier desc, conf desc, jcd asc, race_no asc",
+    "jcd_column": "jcd",
+    "cap_builder": "C:\\work\\boatrace\\make_cap10_excl_tickets_v2.py"
+  },
+  "inputs": {
+    "tickets_long": "C:\\work\\boatrace\\runs\\backtest_alltracks_2025-10-08_2026-01-05_v12prune_s087_tickets_long.csv",
+    "report_csv": "C:\\work\\boatrace\\runs\\backtest_alltracks_2025-10-08_2026-01-05_v12prune_s087_report.csv",
+    "payouts_merged_keynorm": "C:\\work\\boatrace\\runs\\payouts_all_2025-10-02_2025-12-30_MERGED_keynorm.csv"
+  },
+  "artifacts": {
+    "selected_races_csv": "C:\\work\\boatrace\\runs\\selected_races_CAP10_EXCL10_v2_20260106_222231.csv",
+    "cap10_excl_tickets_out": "C:\\work\\boatrace\\runs\\tmp_tickets_CAP10_EXCL10_v2_latest.csv",
+    "roi_out_prefix": "C:\\work\\boatrace\\runs\\ROI_CAP10_EXCL10_v2_latest"
+  },
+  "expected": {
+    "window": "2025-10-08..2025-12-30 (overlap window with payouts)",
+    "roi_total": {
+      "invest": 8400000,
+      "return": 10998500,
+      "roi": 1.309345,
+      "invest_col": "bet_yen_eff",
+      "key_overlap_rate": 1.0
+    },
+    "note": "Previously seen higher ROI (1.353643) was non-deterministic due to tie/ordering drift; v2 is deterministic and is the source-of-truth candidate."
+  },
+  "created_at": "20260106_132601"
+}
