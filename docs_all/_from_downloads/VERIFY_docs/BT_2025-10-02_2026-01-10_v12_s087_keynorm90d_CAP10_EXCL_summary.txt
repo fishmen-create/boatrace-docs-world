@@ -1,0 +1,18 @@
+=== v1.2 backtest summary ===
+features_csv: .\runs\official_features_alltracks_2025-10-02_2026-01-10_dedup.csv
+payouts_csv:  .\runs\payouts_all_2025-10-02_2026-01-10_MERGED_keynorm_90d.csv
+date: 20251002..20260110
+track: (all)
+policy_by_jcd: 14:motor_nat
+a_prune: provisional
+a_prune_history: runs\a_prune_history.csv
+a_prune_diagnostic_csv: runs\BT_2025-10-02_2026-01-10_v12_s087_keynorm90d_CAP10_EXCL_a_prune_diagnostic.csv
+summary_bytrack_csv: runs\BT_2025-10-02_2026-01-10_v12_s087_keynorm90d_CAP10_EXCL_summary_bytrack.csv
+summary_byday_csv:   runs\BT_2025-10-02_2026-01-10_v12_s087_keynorm90d_CAP10_EXCL_summary_byday.csv
+summary_confbins_csv:runs\BT_2025-10-02_2026-01-10_v12_s087_keynorm90d_CAP10_EXCL_summary_confbins.csv
+
+S/A races: 100
+Hit(any):  3/100  (0.030)
+Invest:    1000000
+Return:    22400
+ROI:       0.022
